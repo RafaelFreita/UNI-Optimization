@@ -79,7 +79,58 @@ const closestPointsForDummies = function(points) {
 	return [idxP1, idxP2];
 };
 
-const closestPointsStrategy = closestPointsForDummies;
+const closestPointsLineSweep = function(points) {
+	const n = points.length;
+	let idxP1 = 0,
+		idxP2 = 1;
+	let i = 0;
+	let j = undefined;
+	let currentDist = undefined;
+	let h = points[0].distance(points[1]); // Starting h is the distance between the first two points
+	let newH = h;
+
+	while (i < n) {
+		j = i + 1;
+		if (j === n) {
+			break;
+		}
+
+		// No need for abs since they're sorted by 'x'
+		while (j < n) {
+			const distanceInX = points[j].x - points[i].x;
+			if (distanceInX >= h) {
+				j++;
+				continue;
+			}
+
+			const distanceInY = Math.abs(points[i].y - points[j].y);
+			if (distanceInY >= h) {
+				j++;
+				continue;
+			}
+
+			currentDist = points[i].distance(points[j]);
+			if (currentDist < newH) {
+				newH = currentDist;
+				idxP1 = i;
+				idxP2 = j;
+				j++;
+				continue;
+			}
+
+			j++;
+		}
+
+		// If distance to new point is bigger than h, move line to it
+		h = newH;
+		i++;
+		continue;
+	}
+
+	return [idxP1, idxP2];
+};
+
+const closestPointsStrategy = closestPointsLineSweep;
 
 const closestPoints = closestPointsStrategy(sortedArray);
 
