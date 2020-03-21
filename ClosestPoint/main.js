@@ -200,17 +200,25 @@ const pointRadius = 10;
 // Defined as undefined because the value has to be filled inside the setup function
 let screenCenter;
 let xScale, yScale;
+let screenPosition;
+let zoom = 1;
 
 calculateClosestPoints();
+
+function clear() {
+	background(31);
+}
+
 function setup() {
 	const canvas = createCanvas(800, 800);
 	canvas.parent('canvas-container');
 
+	frameRate(60);
+
 	background(31);
-	frameRate(30);
-	noLoop();
 
 	screenCenter = new Vec2(width / 2, height / 2);
+	screenPosition = screenCenter;
 	// Using scaling to ensure every point is visible on screen
 	const xMagnitude = sortedArray[sortedArray.length - 1].x - sortedArray[0].x;
 	const yMagnitude = (() => {
@@ -231,6 +239,10 @@ function setup() {
 }
 
 function draw() {
+	background(31);
+	translate(screenPosition.x, screenPosition.y);
+	scale(zoom);
+
 	// Drawing points
 	stroke(222);
 	strokeWeight(1);
@@ -240,36 +252,60 @@ function draw() {
 
 		fill(255, 255, 255, 128);
 		if (idx === closestPoints[0] || idx === closestPoints[1]) {
-			fill(255, 0, 0);
+			fill(255, 0, 0, 255);
 		}
 
-		ellipse(
-			currentPoint.x * xScale + screenCenter.x,
-			currentPoint.y * yScale + screenCenter.y,
-			pointRadius
-		);
+		ellipse(currentPoint.x * xScale, currentPoint.y * yScale, pointRadius);
 	}
 }
 
 // Setting button callbacks
 const sampleButton = document.getElementById('button-sample');
 const randomizeButton = document.getElementById('button-randomize');
+const randomizeSlider = document.getElementById('random-points-range');
 
 function useSampleData() {
+	zoom = 1;
+	screenPosition = screenCenter;
+
 	points = samplePoints;
 	calculateClosestPoints();
-	setup();
-	draw();
 }
 sampleButton.onclick = useSampleData;
 
 function useRandomizedData() {
+	zoom = 1;
+	screenPosition = screenCenter;
+
 	points = generateRandomPoints(
-		randomPointsSampleLength,
+		Number(randomizeSlider.value),
 		randomPointsSampleAmplitude
 	);
 	calculateClosestPoints();
-	setup();
-	draw();
 }
 randomizeButton.onclick = useRandomizedData;
+
+// Movement and zoom
+const mouseSensitivity = 0.1;
+const zoomSensitivity = 0.0005;
+const zoomMin = 0.5,
+	zoomMax = 5;
+function mouseWheel(event) {
+	zoom -= zoomSensitivity * event.delta;
+	zoom = constrain(zoom, zoomMin, zoomMax);
+	return false;
+}
+
+// Mouse drag
+let xOffset = 0,
+	yOffset = 0;
+let isDragginScreen = false;
+function mousePressed() {
+	xOffset = mouseX - screenPosition.x;
+	yOffset = mouseY - screenPosition.y;
+}
+
+function mouseDragged() {
+		screenPosition.x = mouseX - xOffset;
+		screenPosition.y = mouseY - yOffset;
+}
