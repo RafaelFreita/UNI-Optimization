@@ -47,12 +47,15 @@ const samplePoints = [
 
 // Random points
 const randomPointsSampleLength = 100;
-const randomPoints = new Array(randomPointsSampleLength)
-	.fill(0)
-	.map(el => new Vec2(random101() * 10, random101() * 10));
+const randomPointsSampleAmplitude = 10;
+function generateRandomPoints(size, amplitude) {
+	return new Array(size)
+		.fill(0)
+		.map(el => new Vec2(random101() * amplitude, random101() * amplitude));
+}
 
-const points = randomPoints;
-const sortedArray = points.sort((a, b) => a.x - b.x);
+let points = samplePoints;
+let sortedArray = points.sort((a, b) => a.x - b.x);
 
 // Closest points algorithms
 const closestPointsBruteForce = function(points) {
@@ -130,7 +133,6 @@ const closestPointsLineSweep = function(points) {
 };
 
 const closestPointsDivideAndConquer = function(points) {
-
 	function divideAndConquerIteration(points) {
 		if (points.length === 1) {
 			return Number.MAX_SAFE_INTEGER;
@@ -152,7 +154,10 @@ const closestPointsDivideAndConquer = function(points) {
 			// Dividing into 2 parts
 			const distancePointsBefore = divideAndConquerIteration(pointsBefore);
 			const distancePointsAfter = divideAndConquerIteration(pointsAfter);
-			const minimumDistance = Math.min(distancePointsBefore, distancePointsAfter);
+			const minimumDistance = Math.min(
+				distancePointsBefore,
+				distancePointsAfter
+			);
 
 			// Strip
 			const strip = [];
@@ -163,10 +168,10 @@ const closestPointsDivideAndConquer = function(points) {
 			}
 
 			let stripMinDistance = Number.MAX_SAFE_INTEGER;
-			for(let i = 0; i < strip.length; i++){
-				for(let j = i + 1; j < strip.length; j++){
+			for (let i = 0; i < strip.length; i++) {
+				for (let j = i + 1; j < strip.length; j++) {
 					const currentDist = strip[i].distance(strip[j]);
-					if(currentDist < stripMinDistance){
+					if (currentDist < stripMinDistance) {
 						stripMinDistance = currentDist;
 					}
 				}
@@ -179,50 +184,53 @@ const closestPointsDivideAndConquer = function(points) {
 	return divideAndConquerIteration(points);
 };
 
-const closestPointsStrategy = closestPointsDivideAndConquer;
-const closestPoints = closestPointsLineSweep(sortedArray);
-const pointsDistance = points[closestPoints[0]].distance(points[closestPoints[1]]);
+const closestPointsStrategy = closestPointsLineSweep;
+
+let closestPoints = undefined;
+let pointsDistance = undefined;
+function calculateClosestPoints() {
+	sortedArray = points.sort((a, b) => a.x - b.x);
+	closestPoints = closestPointsStrategy(sortedArray);
+	pointsDistance = points[closestPoints[0]].distance(points[closestPoints[1]]);
+}
 
 // Drawing
 const pointRadius = 10;
-const xMagnitude = sortedArray[sortedArray.length - 1].x - sortedArray[0].x;
-const yMagnitude = (() => {
-	let min = Number.MAX_SAFE_INTEGER;
-	let max = Number.MIN_SAFE_INTEGER;
-	for (const point of sortedArray) {
-		if (point.y < min) {
-			min = point.y;
-		}
-		if (point.y > max) {
-			max = point.y;
-		}
-	}
-	return max - min;
-})();
 
 // Defined as undefined because the value has to be filled inside the setup function
 let screenCenter;
 let xScale, yScale;
 
+calculateClosestPoints();
 function setup() {
-	createCanvas(800, 800);
+	const canvas = createCanvas(800, 800);
+	canvas.parent('canvas-container');
+
 	background(31);
 	frameRate(30);
 	noLoop();
 
 	screenCenter = new Vec2(width / 2, height / 2);
 	// Using scaling to ensure every point is visible on screen
+	const xMagnitude = sortedArray[sortedArray.length - 1].x - sortedArray[0].x;
+	const yMagnitude = (() => {
+		let min = Number.MAX_SAFE_INTEGER;
+		let max = Number.MIN_SAFE_INTEGER;
+		for (const point of sortedArray) {
+			if (point.y < min) {
+				min = point.y;
+			}
+			if (point.y > max) {
+				max = point.y;
+			}
+		}
+		return max - min;
+	})();
 	xScale = (width - pointRadius * 4) / xMagnitude;
 	yScale = (height - pointRadius * 4) / yMagnitude;
 }
 
 function draw() {
-	// Drawing text
-	fill(255);
-	noStroke();
-	textSize(12);
-	text(`Distance: ${pointsDistance}`, 2, 12);
-
 	// Drawing points
 	stroke(222);
 	strokeWeight(1);
@@ -242,3 +250,26 @@ function draw() {
 		);
 	}
 }
+
+// Setting button callbacks
+const sampleButton = document.getElementById('button-sample');
+const randomizeButton = document.getElementById('button-randomize');
+
+function useSampleData() {
+	points = samplePoints;
+	calculateClosestPoints();
+	setup();
+	draw();
+}
+sampleButton.onclick = useSampleData;
+
+function useRandomizedData() {
+	points = generateRandomPoints(
+		randomPointsSampleLength,
+		randomPointsSampleAmplitude
+	);
+	calculateClosestPoints();
+	setup();
+	draw();
+}
+randomizeButton.onclick = useRandomizedData;
