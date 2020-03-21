@@ -1,3 +1,5 @@
+'use strict';
+
 // Helper
 const random101 = () => Math.random() * 2 - 1;
 function getMedianPoint(points) {
