@@ -75,7 +75,7 @@ const closestPointsBruteForce = function(points) {
 		}
 	}
 
-	return [idxP1, idxP2];
+	return { distance: minDist, points: [idxP1, idxP2] };
 };
 
 const closestPointsLineSweep = function(points) {
@@ -129,15 +129,15 @@ const closestPointsLineSweep = function(points) {
 		continue;
 	}
 
-	return [idxP1, idxP2];
+	return { distance: h, points: [idxP1, idxP2] };
 };
 
 const closestPointsDivideAndConquer = function(points) {
 	function divideAndConquerIteration(points) {
 		if (points.length === 1) {
-			return Number.MAX_SAFE_INTEGER;
+			return { distance: Number.MAX_SAFE_INTEGER, points: [] };
 		} else if (points.length === 2) {
-			return points[0].distance(points[1]);
+			return { distance: points[0].distance(points[1]), points: points };
 		} else {
 			const median = getMedianPoint(points);
 			// Separate points in before/after groups
@@ -154,44 +154,95 @@ const closestPointsDivideAndConquer = function(points) {
 			// Dividing into 2 parts
 			const distancePointsBefore = divideAndConquerIteration(pointsBefore);
 			const distancePointsAfter = divideAndConquerIteration(pointsAfter);
-			const minimumDistance = Math.min(
-				distancePointsBefore,
-				distancePointsAfter
-			);
+			const minimumDistanceObject =
+				distancePointsBefore.distance < distancePointsAfter.distance
+					? distancePointsBefore
+					: distancePointsAfter;
 
 			// Strip
 			const strip = [];
 			for (const point of points) {
-				if (Math.abs(point.x - median.x) < minimumDistance) {
+				if (Math.abs(point.x - median.x) < minimumDistanceObject.distance) {
 					strip.push(point);
 				}
 			}
 
 			let stripMinDistance = Number.MAX_SAFE_INTEGER;
+			let stripMinPoints = [];
 			for (let i = 0; i < strip.length; i++) {
 				for (let j = i + 1; j < strip.length; j++) {
 					const currentDist = strip[i].distance(strip[j]);
 					if (currentDist < stripMinDistance) {
 						stripMinDistance = currentDist;
+
+						stripMinPoints[0] = strip[i];
+						stripMinPoints[1] = strip[j];
 					}
 				}
 			}
+			const stripMinObject = {
+				distance: stripMinDistance,
+				points: stripMinPoints
+			};
 
-			const totalMinDistance = Math.min(minimumDistance, stripMinDistance);
+			const totalMinDistance =
+				minimumDistanceObject.distance < stripMinObject.distance
+					? minimumDistanceObject
+					: stripMinObject;
 			return totalMinDistance;
 		}
 	}
-	return divideAndConquerIteration(points);
+	const divideAndConquerResult = divideAndConquerIteration(points);
+
+	// Finding indexes for p1 and p2
+	let idxP1 = 0;
+	let idxP2 = 1;
+	let checkingP1 = true,
+		checkingP2 = true;
+	for (let i = 0; i < points.length; i++) {
+		if (checkingP1) {
+			if (
+				points[i].x === divideAndConquerResult.points[0].x &&
+				points[i].y === divideAndConquerResult.points[0].y
+			) {
+				idxP1 = i;
+				checkingP1 = false;
+				if (!checkingP2) break;
+				continue;
+			}
+		}
+
+		if (checkingP2) {
+			if (
+				points[i].x === divideAndConquerResult.points[1].x &&
+				points[i].y === divideAndConquerResult.points[1].y
+			) {
+				idxP2 = i;
+				checkingP2 = false;
+				if (!checkingP1) break;
+				continue;
+			}
+		}
+	}
+
+	return {
+		distance: divideAndConquerResult.distance,
+		points: [idxP1, idxP2]
+	};
 };
 
-const closestPointsStrategy = closestPointsLineSweep;
+const closestPointsStrategy = closestPointsDivideAndConquer;
 
 let closestPoints = undefined;
 let pointsDistance = undefined;
+const distanceSpan = document.getElementById('distance-span');
+
 function calculateClosestPoints() {
 	sortedArray = points.sort((a, b) => a.x - b.x);
-	closestPoints = closestPointsStrategy(sortedArray);
-	pointsDistance = points[closestPoints[0]].distance(points[closestPoints[1]]);
+	const closestPointsResult = closestPointsStrategy(sortedArray);
+	closestPoints = closestPointsResult.points;
+	pointsDistance = closestPointsResult.distance;
+	distanceSpan.innerHTML = pointsDistance.toFixed(3);
 }
 
 // Drawing
@@ -210,7 +261,7 @@ function clear() {
 }
 
 function setup() {
-	const canvas = createCanvas(800, 800);
+	const canvas = createCanvas(800, 600);
 	canvas.parent('canvas-container');
 
 	frameRate(60);
@@ -252,7 +303,7 @@ function draw() {
 
 		fill(255, 255, 255, 128);
 		if (idx === closestPoints[0] || idx === closestPoints[1]) {
-			fill(255, 0, 0, 255);
+			fill(255, 0, 0, 128);
 		}
 
 		ellipse(currentPoint.x * xScale, currentPoint.y * yScale, pointRadius);
@@ -262,7 +313,13 @@ function draw() {
 // Setting button callbacks
 const sampleButton = document.getElementById('button-sample');
 const randomizeButton = document.getElementById('button-randomize');
+
 const randomizeSlider = document.getElementById('random-points-range');
+const randomizeText = document.getElementById('random-points-value');
+randomizeSlider.oninput = function() {
+	randomizeText.innerHTML = `Random points quantity: ${randomizeSlider.value}`;
+};
+randomizeSlider.oninput(); // Calling callback once to set it up
 
 function useSampleData() {
 	zoom = 1;
@@ -297,8 +354,8 @@ function mouseWheel(event) {
 }
 
 // Mouse drag
-let xOffset = 0,
-	yOffset = 0;
+let xOffset = 0;
+let yOffset = 0;
 let isDragginScreen = false;
 function mousePressed() {
 	xOffset = mouseX - screenPosition.x;
@@ -306,6 +363,6 @@ function mousePressed() {
 }
 
 function mouseDragged() {
-		screenPosition.x = mouseX - xOffset;
-		screenPosition.y = mouseY - yOffset;
+	screenPosition.x = mouseX - xOffset;
+	screenPosition.y = mouseY - yOffset;
 }
