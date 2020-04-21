@@ -169,7 +169,67 @@ function incrementalHull(points) {
 	return hull;
 }
 
-function grahamScan(points) {}
+function findMinYPoint(points) {
+	let minPoint = points[0];
+	for (let point of points) {
+		if (point.y < minPoint.y) {
+			minPoint = point;
+		}
+	}
+	return minPoint;
+}
+
+function grahamScan(points) {
+	if (points.length <= 2) {
+		throw new Error('Trying to create a hull from insufficient points.');
+	}
+
+	// 3 points is a hull
+	if (points.length === 3) {
+		points.push(points[0]);
+		return points;
+	}
+
+	// Actually computing hull
+	const hull = [];
+
+	// Find min y point
+	const minYPoint = findMinYPoint(points);
+	hull.push(minYPoint);
+
+	const pointsWithoutPivot = [...points];
+	pointsWithoutPivot.splice(points.indexOf(minYPoint), 1);
+
+	// Sort points by angle between x axis and vector minYPoint -> checkingPoint
+	const xAxis = new Vec2(1, 0);
+	const sortedPoints = pointsWithoutPivot.sort(
+		(a, b) => xAxis.angle(minYPoint.to(a)) > xAxis.angle(minYPoint.to(b))
+	);
+
+	let currentIdx = 0;
+	while (currentIdx < sortedPoints.length) {
+		const currentPoint = sortedPoints[currentIdx];
+
+		hull.push(currentPoint);
+
+		const lastHullEdge = [hull[hull.length - 2], hull[hull.length - 1]];
+
+		const nextPointIdx =
+			currentIdx + 1 < sortedPoints.length ? currentIdx + 1 : 0;
+		const nextPoint = sortedPoints[nextPointIdx];
+
+		if (side(lastHullEdge[0], lastHullEdge[1], nextPoint) === 1) {
+			hull.pop(); // Removing the current pivot
+			hull.pop(); // Removing last pivot since it will be added when the function loops
+			sortedPoints.splice(currentIdx, 1);
+			currentIdx--;
+		} else {
+			currentIdx++;
+		}
+	}
+
+	return hull;
+}
 
 function findMinMaxXPoints(points) {
 	let minPoint = points[0];
@@ -255,7 +315,7 @@ const convexHullAlgorithms = {
 	quickHull,
 };
 
-const convexHullStrategy = convexHullAlgorithms.quickHull;
+const convexHullStrategy = convexHullAlgorithms.grahamScan;
 
 let convexHullPoints = undefined;
 
@@ -308,6 +368,8 @@ function setup() {
 	yScale = (height - pointRadius * 4) / yMagnitude;
 }
 
+const drawConvexHull = true;
+
 function draw() {
 	background(31);
 	translate(screenPosition.x, screenPosition.y);
@@ -321,22 +383,23 @@ function draw() {
 	for (let idx = 0; idx < points.length; idx++) {
 		const currentPoint = points[idx];
 
-		ellipse(currentPoint.x * xScale, currentPoint.y * yScale, pointRadius);
+		ellipse(currentPoint.x * xScale, currentPoint.y * yScale * -1, pointRadius);
 	}
 
 	// Drawing lines
+	if (!drawConvexHull) return;
 	stroke(222, 128, 128);
 	for (let idx = 0; idx < convexHullPoints.length; idx++) {
 		const nextIdx = idx + 1 >= convexHullPoints.length ? 0 : idx + 1;
 		const currentPoint = convexHullPoints[idx];
 		const nextPoint = convexHullPoints[nextIdx];
 
-		ellipse(currentPoint.x * xScale, currentPoint.y * yScale, pointRadius);
+		ellipse(currentPoint.x * xScale, currentPoint.y * yScale * -1, pointRadius);
 		line(
 			currentPoint.x * xScale,
-			currentPoint.y * yScale,
+			currentPoint.y * yScale * -1,
 			nextPoint.x * xScale,
-			nextPoint.y * yScale
+			nextPoint.y * yScale * -1
 		);
 	}
 }
