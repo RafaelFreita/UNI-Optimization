@@ -55,6 +55,31 @@ function furthestPointFromEdge(points, edge) {
 	return maxDistancePoint;
 }
 
+function findMinYPoint(points) {
+	let minPoint = points[0];
+	for (let point of points) {
+		if (point.y < minPoint.y) {
+			minPoint = point;
+		}
+	}
+	return minPoint;
+}
+
+function findMinMaxXPoints(points) {
+	let minPoint = points[0];
+	let maxPoint = points[0];
+
+	for (let point of points) {
+		if (point.x < minPoint.x) {
+			minPoint = point;
+		} else if (point.x > maxPoint.x) {
+			maxPoint = point;
+		}
+	}
+
+	return [minPoint, maxPoint];
+}
+
 // Vector2 class
 const RAD = 180.0 / Math.PI;
 function Vec2(x, y) {
@@ -169,16 +194,6 @@ function incrementalHull(points) {
 	return hull;
 }
 
-function findMinYPoint(points) {
-	let minPoint = points[0];
-	for (let point of points) {
-		if (point.y < minPoint.y) {
-			minPoint = point;
-		}
-	}
-	return minPoint;
-}
-
 function grahamScan(points) {
 	if (points.length <= 2) {
 		throw new Error('Trying to create a hull from insufficient points.');
@@ -229,21 +244,6 @@ function grahamScan(points) {
 	}
 
 	return hull;
-}
-
-function findMinMaxXPoints(points) {
-	let minPoint = points[0];
-	let maxPoint = points[0];
-
-	for (let point of points) {
-		if (point.x < minPoint.x) {
-			minPoint = point;
-		} else if (point.x > maxPoint.x) {
-			maxPoint = point;
-		}
-	}
-
-	return [minPoint, maxPoint];
 }
 
 function quickHull(points) {
