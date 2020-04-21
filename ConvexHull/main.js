@@ -14,15 +14,90 @@ function getMedianPoint(points) {
 	return new Vec2(medianX, medianY);
 }
 
+// ccw > 0: counter-clockwise; ccw < 0: clockwise; ccw = 0: collinear
+function ccw(p1, p2, p3) {
+	return (p2.x - p1.x) * (p3.y - p1.y) - (p2.y - p1.y) * (p3.x - p1.x);
+}
+
+function side(a, b, c) {
+	const v = (b.y - a.y) * (c.x - a.x) - (b.x - a.x) * (c.y - a.y);
+	return Math.sign(v);
+}
+
+function distancePointToLine(edgeP1, edgeP2, point) {
+	return (
+		Math.abs(
+			(edgeP2.y - edgeP1.y) * point.x -
+				(edgeP2.x - edgeP1.x) * point.y +
+				edgeP2.x * edgeP1.y -
+				edgeP2.y * edgeP1.x
+		) /
+		Math.sqrt(
+			Math.pow(edgeP2.y - edgeP1.y, 2) + Math.pow(edgeP2.x - edgeP1.x, 2)
+		)
+	);
+}
+
+function furthestPointFromEdge(points, edge) {
+	const [p1, p2] = edge;
+	let maxDistancePoint = points[0];
+	let maxDistance = Number.MIN_SAFE_INTEGER;
+
+	for (let point of points) {
+		const distance = distancePointToLine(p1, p2, point);
+
+		if (distance > maxDistance) {
+			maxDistancePoint = point;
+			maxDistance = distance;
+		}
+	}
+
+	return maxDistancePoint;
+}
+
 // Vector2 class
+const RAD = 180.0 / Math.PI;
 function Vec2(x, y) {
 	this.x = x;
 	this.y = y;
 }
-Vec2.prototype.distance = function(other) {
+Vec2.prototype.to = function (other) {
+	return new Vec2(other.x - this.x, other.y - this.y);
+};
+Vec2.prototype.distance = function (other) {
 	return Math.sqrt(
 		Math.pow(this.x - other.x, 2) + Math.pow(this.y - other.y, 2)
 	);
+};
+Vec2.prototype.polarAngle = function () {
+	return Math.atan(this.y / this.x);
+};
+Vec2.prototype.dotProduct = function (other) {
+	return this.x * other.x + this.y * other.y;
+};
+Vec2.prototype.norm = function () {
+	return Math.sqrt(this.x * this.x + this.y * this.y);
+};
+Vec2.prototype.angle = function (other) {
+	const dot = this.dotProduct(other);
+	return Math.acos(dot / (this.norm() * other.norm())) * RAD;
+};
+Vec2.prototype.isInside = function (a, b, c) {
+	const d1 = side(a, b, this);
+	const d2 = side(b, c, this);
+	const d3 = side(c, a, this);
+	return d1 === d2 && d2 === d3;
+};
+Vec2.prototype.isInsidePolygon = function (points) {
+	let angle = 0;
+	for (let i = 0; i < points.length; i++) {
+		const j = i + 1 >= points.length ? 0 : i + 1;
+		const newVec = new Vec2(points[i].x - this.x, points[i].y - this.y);
+		const nextVec = new Vec2(points[j].x - this.x, points[j].y - this.y);
+		const newAngle = newVec.angle(nextVec);
+		angle += newAngle;
+	}
+	return Math.round(angle) === 360;
 };
 
 // Points sample
@@ -42,8 +117,12 @@ const samplePoints = [
 	new Vec2(6.5, 3.2),
 	new Vec2(7, -10),
 	new Vec2(9, -5),
-	new Vec2(11.5, -4)
+	new Vec2(11.5, -4),
 ];
+
+const test = samplePoints.slice(0, 7);
+const testN = test.splice(3, 1);
+testN[0].isInsidePolygon(test);
 
 // Random points
 const randomPointsSampleLength = 100;
@@ -51,26 +130,137 @@ const randomPointsSampleAmplitude = 10;
 function generateRandomPoints(size, amplitude) {
 	return new Array(size)
 		.fill(0)
-		.map(el => new Vec2(random101() * amplitude, random101() * amplitude));
+		.map((el) => new Vec2(random101() * amplitude, random101() * amplitude));
 }
 
 let points = samplePoints;
-let sortedArray = points.sort((a, b) => a.x - b.x);
+const sortedArrayByX = points.sort((a, b) => a.x - b.x);
 
-function quickHull(points){
+function incrementalHull(points) {
+	const sortedArray = points.sort((a, b) => a.x - b.x);
+	const hull = [sortedArray[0], sortedArray[1], sortedArray[2]]; // Hull starts as first 3 points
 
+	function removeInternalPoints() {
+		let i = 0;
+		while (i !== hull.length) {
+			const newArray = [...hull];
+			newArray.splice(i, 1);
+			const isInside = hull[i].isInsidePolygon(newArray);
+			if (isInside) {
+				hull.splice(i, 1);
+				continue;
+			} else {
+				i++;
+			}
+		}
+	}
+
+	for (let i = 3; i < sortedArray.length; i++) {
+		if (i === 6) {
+			console.log('Should remove one point now!');
+		}
+		const isPointInside = sortedArray[i].isInsidePolygon(hull);
+		if (!isPointInside) {
+			hull.push(sortedArray[i]);
+			removeInternalPoints();
+		}
+	}
+
+	return hull;
 }
 
-const convexHullStrategy = quickHull;
+function grahamScan(points) {}
 
-let closestPoints = undefined;
-let pointsDistance = undefined;
+function findMinMaxXPoints(points) {
+	let minPoint = points[0];
+	let maxPoint = points[0];
+
+	for (let point of points) {
+		if (point.x < minPoint.x) {
+			minPoint = point;
+		} else if (point.x > maxPoint.x) {
+			maxPoint = point;
+		}
+	}
+
+	return [minPoint, maxPoint];
+}
+
+function quickHull(points) {
+	if (points.length <= 2) {
+		throw new Error('Trying to create a hull from insufficient points.');
+	}
+
+	// 3 points is a hull
+	if (points.length === 3) {
+		points.push(points[0]);
+		return points;
+	}
+
+	// Actually computing hull
+	const minMaxPoints = findMinMaxXPoints(points);
+	const hull = [minMaxPoints[0], minMaxPoints[1]];
+
+	// Recursive step
+	function quickHullStep(edge, points) {
+		const maxDistancePoint = furthestPointFromEdge(points, edge);
+
+		const edgeIdxA = hull.indexOf(edge[0]);
+		hull.splice(edgeIdxA + 1, 0, maxDistancePoint);
+
+		// Remove points inside triangle
+		const triangle = [edge[0], edge[1], maxDistancePoint];
+		const remainingPoints = [...points].filter(
+			(el) =>
+				!el.isInside(triangle[0], triangle[1], triangle[2]) &&
+				triangle.indexOf(el) === -1
+		);
+
+		if (remainingPoints.length === 0) {
+			return;
+		}
+
+		const pointsAP = [...remainingPoints].filter(
+			(el) => ccw(edge[0], maxDistancePoint, el) > 0
+		);
+		const pointsPB = [...remainingPoints].filter(
+			(el) => ccw(maxDistancePoint, edge[1], el) > 0
+		);
+
+		if (pointsAP.length > 0)
+			quickHullStep([edge[0], maxDistancePoint], pointsAP);
+		if (pointsPB.length > 0)
+			quickHullStep([maxDistancePoint, edge[1]], pointsPB);
+	}
+
+	const pointsAB = [...points].filter(
+		(el) => ccw(minMaxPoints[0], minMaxPoints[1], el) > 0
+	);
+	const pointsBA = [...points].filter(
+		(el) => ccw(minMaxPoints[0], minMaxPoints[1], el) < 0
+	);
+
+	quickHullStep(minMaxPoints, pointsAB);
+	quickHullStep(minMaxPoints.reverse(), pointsBA);
+
+	// Closing loop
+	hull.push(hull[0]);
+
+	return hull;
+}
+
+const convexHullAlgorithms = {
+	// incrementalHull, // Not working as expected
+	grahamScan,
+	quickHull,
+};
+
+const convexHullStrategy = convexHullAlgorithms.quickHull;
+
+let convexHullPoints = undefined;
 
 function calculateConvexHull() {
-	sortedArray = points.sort((a, b) => a.x - b.x);
-	const closestPointsResult = convexHullStrategy(sortedArray);
-	closestPoints = closestPointsResult.points;
-	pointsDistance = closestPointsResult.distance;
+	convexHullPoints = convexHullStrategy(points);
 }
 
 // Drawing
@@ -99,11 +289,12 @@ function setup() {
 	screenCenter = new Vec2(width / 2, height / 2);
 	screenPosition = screenCenter;
 	// Using scaling to ensure every point is visible on screen
-	const xMagnitude = sortedArray[sortedArray.length - 1].x - sortedArray[0].x;
+	const xMagnitude =
+		sortedArrayByX[sortedArrayByX.length - 1].x - sortedArrayByX[0].x;
 	const yMagnitude = (() => {
 		let min = Number.MAX_SAFE_INTEGER;
 		let max = Number.MIN_SAFE_INTEGER;
-		for (const point of sortedArray) {
+		for (const point of sortedArrayByX) {
 			if (point.y < min) {
 				min = point.y;
 			}
@@ -126,11 +317,27 @@ function draw() {
 	stroke(222);
 	strokeWeight(1);
 
+	fill(255, 255, 255, 128);
 	for (let idx = 0; idx < points.length; idx++) {
 		const currentPoint = points[idx];
 
-		fill(255, 255, 255, 128);
 		ellipse(currentPoint.x * xScale, currentPoint.y * yScale, pointRadius);
+	}
+
+	// Drawing lines
+	stroke(222, 128, 128);
+	for (let idx = 0; idx < convexHullPoints.length; idx++) {
+		const nextIdx = idx + 1 >= convexHullPoints.length ? 0 : idx + 1;
+		const currentPoint = convexHullPoints[idx];
+		const nextPoint = convexHullPoints[nextIdx];
+
+		ellipse(currentPoint.x * xScale, currentPoint.y * yScale, pointRadius);
+		line(
+			currentPoint.x * xScale,
+			currentPoint.y * yScale,
+			nextPoint.x * xScale,
+			nextPoint.y * yScale
+		);
 	}
 }
 
@@ -140,7 +347,7 @@ const randomizeButton = document.getElementById('button-randomize');
 
 const randomizeSlider = document.getElementById('random-points-range');
 const randomizeText = document.getElementById('random-points-value');
-randomizeSlider.oninput = function() {
+randomizeSlider.oninput = function () {
 	randomizeText.innerHTML = `Random points quantity: ${randomizeSlider.value}`;
 };
 randomizeSlider.oninput(); // Calling callback once to set it up
@@ -168,7 +375,7 @@ randomizeButton.onclick = useRandomizedData;
 
 // Movement and zoom
 const mouseSensitivity = 0.1;
-const zoomSensitivity = 0.0005;
+const zoomSensitivity = 0.005;
 const zoomMin = 0.5,
 	zoomMax = 5;
 function mouseWheel(event) {
