@@ -217,11 +217,12 @@ function grahamScan(points) {
 
 	// Sort points by angle between x axis and vector minYPoint -> checkingPoint
 	const xAxis = new Vec2(1, 0);
-	const sortedPoints = pointsWithoutPivot.sort(
-		(a, b) => xAxis.angle(minYPoint.to(a)) > xAxis.angle(minYPoint.to(b))
+	const sortedPoints = pointsWithoutPivot.sort((a, b) =>
+		xAxis.angle(minYPoint.to(a)) > xAxis.angle(minYPoint.to(b)) ? 1 : -1
 	);
 
 	let currentIdx = 0;
+	//debugger;
 	while (currentIdx < sortedPoints.length) {
 		const currentPoint = sortedPoints[currentIdx];
 
