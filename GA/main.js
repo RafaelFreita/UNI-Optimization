@@ -308,8 +308,17 @@ function useRandomizedData() {
 }
 randomizeButton.onclick = useRandomizedData;
 
+function uniqueArrayOfPoints(arr) {
+	return arr.filter(
+		(point, index, self) =>
+			self.findIndex((t) => t.x === point.x && t.y === point.y) === index
+	);
+}
+
 confirmButton.onclick = function () {
 	isDragginScreen = true;
+
+	points = uniqueArrayOfPoints(points);
 
 	calculateConvexHull();
 	generateVoronoi();
