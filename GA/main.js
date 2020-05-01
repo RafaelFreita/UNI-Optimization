@@ -145,10 +145,6 @@ const samplePoints = [
 	new Vec2(11.5, -4),
 ];
 
-const test = samplePoints.slice(0, 7);
-const testN = test.splice(3, 1);
-testN[0].isInsidePolygon(test);
-
 // Random points
 const randomPointsSampleLength = 100;
 const randomPointsSampleAmplitude = 10;
@@ -160,39 +156,6 @@ function generateRandomPoints(size, amplitude) {
 
 let points = samplePoints;
 const sortedArrayByX = points.sort((a, b) => a.x - b.x);
-
-function incrementalHull(points) {
-	const sortedArray = points.sort((a, b) => a.x - b.x);
-	const hull = [sortedArray[0], sortedArray[1], sortedArray[2]]; // Hull starts as first 3 points
-
-	function removeInternalPoints() {
-		let i = 0;
-		while (i !== hull.length) {
-			const newArray = [...hull];
-			newArray.splice(i, 1);
-			const isInside = hull[i].isInsidePolygon(newArray);
-			if (isInside) {
-				hull.splice(i, 1);
-				continue;
-			} else {
-				i++;
-			}
-		}
-	}
-
-	for (let i = 3; i < sortedArray.length; i++) {
-		if (i === 6) {
-			console.log('Should remove one point now!');
-		}
-		const isPointInside = sortedArray[i].isInsidePolygon(hull);
-		if (!isPointInside) {
-			hull.push(sortedArray[i]);
-			removeInternalPoints();
-		}
-	}
-
-	return hull;
-}
 
 function grahamScan(points) {
 	if (points.length <= 2) {
@@ -246,81 +209,9 @@ function grahamScan(points) {
 	return hull;
 }
 
-function quickHull(points) {
-	if (points.length <= 2) {
-		throw new Error('Trying to create a hull from insufficient points.');
-	}
-
-	// 3 points is a hull
-	if (points.length === 3) {
-		points.push(points[0]);
-		return points;
-	}
-
-	// Actually computing hull
-	const minMaxPoints = findMinMaxXPoints(points);
-	const hull = [minMaxPoints[0], minMaxPoints[1]];
-
-	// Recursive step
-	function quickHullStep(edge, points) {
-		const maxDistancePoint = furthestPointFromEdge(points, edge);
-
-		const edgeIdxA = hull.indexOf(edge[0]);
-		hull.splice(edgeIdxA + 1, 0, maxDistancePoint);
-
-		// Remove points inside triangle
-		const triangle = [edge[0], edge[1], maxDistancePoint];
-		const remainingPoints = [...points].filter(
-			(el) =>
-				!el.isInside(triangle[0], triangle[1], triangle[2]) &&
-				triangle.indexOf(el) === -1
-		);
-
-		if (remainingPoints.length === 0) {
-			return;
-		}
-
-		const pointsAP = [...remainingPoints].filter(
-			(el) => ccw(edge[0], maxDistancePoint, el) > 0
-		);
-		const pointsPB = [...remainingPoints].filter(
-			(el) => ccw(maxDistancePoint, edge[1], el) > 0
-		);
-
-		if (pointsAP.length > 0)
-			quickHullStep([edge[0], maxDistancePoint], pointsAP);
-		if (pointsPB.length > 0)
-			quickHullStep([maxDistancePoint, edge[1]], pointsPB);
-	}
-
-	const pointsAB = [...points].filter(
-		(el) => ccw(minMaxPoints[0], minMaxPoints[1], el) > 0
-	);
-	const pointsBA = [...points].filter(
-		(el) => ccw(minMaxPoints[0], minMaxPoints[1], el) < 0
-	);
-
-	quickHullStep(minMaxPoints, pointsAB);
-	quickHullStep(minMaxPoints.reverse(), pointsBA);
-
-	// Closing loop
-	hull.push(hull[0]);
-
-	return hull;
-}
-
-const convexHullAlgorithms = {
-	// incrementalHull, // Not working as expected
-	grahamScan,
-	quickHull,
-};
-
-const convexHullStrategy = convexHullAlgorithms.grahamScan;
-
-let convexHullPoints = undefined;
-
+let convexHullPoints;
 function calculateConvexHull() {
-	convexHullPoints = convexHullStrategy(points);
+	convexHullPoints = grahamScan(points);
 }
 
 // Drawing
