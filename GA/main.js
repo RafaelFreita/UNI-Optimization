@@ -92,9 +92,10 @@ function generateRandomPoints(size, amplitude) {
 		.map((el) => new Vec2(random101() * amplitude, random101() * amplitude));
 }
 
-let points = samplePoints;
-const sortedArrayByX = points.sort((a, b) => a.x - b.x);
+let points = [];
+const sortedArrayByX = samplePoints.sort((a, b) => a.x - b.x);
 
+// GRAHAM SCAN
 function grahamScan(points) {
 	if (points.length <= 2) {
 		throw new Error('Trying to create a hull from insufficient points.');
@@ -147,9 +148,28 @@ function grahamScan(points) {
 	return hull;
 }
 
-let convexHullPoints;
+let convexHullPoints = [];
 function calculateConvexHull() {
 	convexHullPoints = grahamScan(points);
+}
+
+// VORONOI
+// Generating voronoi
+const screenBounds = [-15, -15, 15, 15];
+const cellPolygons = [];
+let voronoi;
+
+function generateVoronoi() {
+	const delaunay = d3.Delaunay.from(points.map((el) => [el.x, el.y]));
+	voronoi = delaunay.voronoi(screenBounds);
+
+	// Extracting cell polygons for render
+	const cellPolygonsGenerator = voronoi.cellPolygons();
+
+	cellPolygons.length = 0;
+	for (let polygon of cellPolygonsGenerator) {
+		cellPolygons.push(polygon.map((el) => new Vec2(el[0], el[1])));
+	}
 }
 
 // Drawing
@@ -157,30 +177,18 @@ const pointRadius = 10;
 
 // Defined as undefined because the value has to be filled inside the setup function
 let screenCenter;
+let screenSize;
 let xScale, yScale;
 let screenPosition;
 let zoom = 1;
 
-calculateConvexHull();
-
-// VORONOI
-
-// Generating voronoi
-const voronoiBounds = [-15, -15, 15, 15];
-const delaunay = d3.Delaunay.from(samplePoints.map((el) => [el.x, el.y]));
-const voronoi = delaunay.voronoi(voronoiBounds);
-
-// Extracting cell polygons for render
-const cellPolygonsGenerator = voronoi.cellPolygons();
-const cellPolygons = [];
-
-for (let polygon of cellPolygonsGenerator) {
-	cellPolygons.push(polygon.map((el) => new Vec2(el[0], el[1])));
-}
-
 // Render options
 let drawConvexHull = true;
 let drawVoronoiDiagram = true;
+
+// Setting up everything
+//calculateConvexHull();
+//generateVoronoi(samplePoints);
 
 function clear() {
 	background(31);
@@ -194,26 +202,12 @@ function setup() {
 
 	background(31);
 
+	screenSize = new Vec2(width, height);
 	screenCenter = new Vec2(width / 2, height / 2);
 	screenPosition = screenCenter;
-	// Using scaling to ensure every point is visible on screen
-	const xMagnitude =
-		sortedArrayByX[sortedArrayByX.length - 1].x - sortedArrayByX[0].x;
-	const yMagnitude = (() => {
-		let min = Number.MAX_SAFE_INTEGER;
-		let max = Number.MIN_SAFE_INTEGER;
-		for (const point of sortedArrayByX) {
-			if (point.y < min) {
-				min = point.y;
-			}
-			if (point.y > max) {
-				max = point.y;
-			}
-		}
-		return max - min;
-	})();
-	xScale = (width - pointRadius * 4) / xMagnitude;
-	yScale = (height - pointRadius * 4) / yMagnitude;
+
+	xScale = width / screenBounds[0];
+	yScale = height / screenBounds[2];
 }
 
 function draw() {
@@ -277,6 +271,7 @@ function draw() {
 // Setting button callbacks
 const sampleButton = document.getElementById('button-sample');
 const randomizeButton = document.getElementById('button-randomize');
+const confirmButton = document.getElementById('button-confirm');
 
 const randomizeSlider = document.getElementById('random-points-range');
 const randomizeText = document.getElementById('random-points-value');
@@ -286,15 +281,20 @@ randomizeSlider.oninput = function () {
 randomizeSlider.oninput(); // Calling callback once to set it up
 
 function useSampleData() {
+	isDragginScreen = true;
+
 	zoom = 1;
 	screenPosition = screenCenter;
 
 	points = samplePoints;
 	calculateConvexHull();
+	generateVoronoi();
 }
 sampleButton.onclick = useSampleData;
 
 function useRandomizedData() {
+	isDragginScreen = true;
+
 	zoom = 1;
 	screenPosition = screenCenter;
 
@@ -302,9 +302,18 @@ function useRandomizedData() {
 		Number(randomizeSlider.value),
 		randomPointsSampleAmplitude
 	);
+
 	calculateConvexHull();
+	generateVoronoi();
 }
 randomizeButton.onclick = useRandomizedData;
+
+confirmButton.onclick = function () {
+	isDragginScreen = true;
+
+	calculateConvexHull();
+	generateVoronoi();
+};
 
 // Movement and zoom
 const mouseSensitivity = 0.1;
@@ -312,8 +321,10 @@ const zoomSensitivity = 0.005;
 const zoomMin = 0.5,
 	zoomMax = 5;
 function mouseWheel(event) {
-	zoom -= zoomSensitivity * event.delta;
-	zoom = constrain(zoom, zoomMin, zoomMax);
+	if (isDragginScreen) {
+		zoom -= zoomSensitivity * event.delta;
+		zoom = constrain(zoom, zoomMin, zoomMax);
+	}
 	return false;
 }
 
@@ -322,11 +333,20 @@ let xOffset = 0;
 let yOffset = 0;
 let isDragginScreen = false;
 function mousePressed() {
-	xOffset = mouseX - screenPosition.x;
-	yOffset = mouseY - screenPosition.y;
+	if (isDragginScreen) {
+		xOffset = mouseX - screenPosition.x;
+		yOffset = mouseY - screenPosition.y;
+	} else {
+		const newX = ((mouseX - screenCenter.x) / screenSize.x) * screenBounds[0];
+		const newY = ((mouseY - screenCenter.y) / screenSize.y) * -screenBounds[2];
+
+		points.push(new Vec2(newX, newY));
+	}
 }
 
 function mouseDragged() {
-	screenPosition.x = mouseX - xOffset;
-	screenPosition.y = mouseY - yOffset;
+	if (isDragginScreen) {
+		screenPosition.x = mouseX - xOffset;
+		screenPosition.y = mouseY - yOffset;
+	}
 }

@@ -27,7 +27,15 @@
 		<main>
 			<div class="container">
 				<div class="row">
-					<p>Click and drag to pan. Use the mouse wheel to zoom.</p>
+					<p>
+						Select the points and confirm them in the button below.
+						<br />
+						After confirming, click and drag to pan and use the mouse wheel to
+						zoom.
+						<br />
+						Selecting the sample points or generating random ones automatically
+						confirms (and erases the created points).
+					</p>
 				</div>
 
 				<div class="row">
@@ -36,21 +44,37 @@
 
 				<div class="row">
 					<div class="one-third column">
-						<button name="button-sample" id="button-sample">Sample</button>
+						<button name="button-confirm" id="button-confirm">
+							Confirm Points
+						</button>
 					</div>
+
 					<div class="one-third column">
-						<span>Convex Hull</span>
+						<button name="button-sample" id="button-sample">
+							Sample Points
+						</button>
 					</div>
+
 					<div class="one-third column">
 						<button name="button-randomize" id="button-randomize">
-							Randomize
+							Randomize Points
 						</button>
 					</div>
 				</div>
 
 				<div class="row">
-					<span id="random-points-value"></span>
-					<input type="range" id="random-points-range" min="10" max="500" />
+					<div class="one-third column">
+						<span>x</span>
+					</div>
+
+					<div class="one-third column">
+						<span>x</span>
+					</div>
+
+					<div class="one-third column">
+						<span id="random-points-value"></span>
+						<input type="range" id="random-points-range" min="10" max="500" />
+					</div>
 				</div>
 			</div>
 		</main>
