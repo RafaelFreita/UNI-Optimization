@@ -222,7 +222,6 @@ function grahamScan(points) {
 	);
 
 	let currentIdx = 0;
-	//debugger;
 	while (currentIdx < sortedPoints.length) {
 		const currentPoint = sortedPoints[currentIdx];
 
