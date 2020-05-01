@@ -2,57 +2,10 @@
 
 // Helper
 const random101 = () => Math.random() * 2 - 1;
-function getMedianPoint(points) {
-	let medianX = 0,
-		medianY = 0;
-	for (const point of points) {
-		medianX += point.x;
-		medianY += point.y;
-	}
-	medianX /= points.length;
-	medianY /= points.length;
-	return new Vec2(medianX, medianY);
-}
-
-// ccw > 0: counter-clockwise; ccw < 0: clockwise; ccw = 0: collinear
-function ccw(p1, p2, p3) {
-	return (p2.x - p1.x) * (p3.y - p1.y) - (p2.y - p1.y) * (p3.x - p1.x);
-}
 
 function side(a, b, c) {
 	const v = (b.y - a.y) * (c.x - a.x) - (b.x - a.x) * (c.y - a.y);
 	return Math.sign(v);
-}
-
-function distancePointToLine(edgeP1, edgeP2, point) {
-	return (
-		Math.abs(
-			(edgeP2.y - edgeP1.y) * point.x -
-				(edgeP2.x - edgeP1.x) * point.y +
-				edgeP2.x * edgeP1.y -
-				edgeP2.y * edgeP1.x
-		) /
-		Math.sqrt(
-			Math.pow(edgeP2.y - edgeP1.y, 2) + Math.pow(edgeP2.x - edgeP1.x, 2)
-		)
-	);
-}
-
-function furthestPointFromEdge(points, edge) {
-	const [p1, p2] = edge;
-	let maxDistancePoint = points[0];
-	let maxDistance = Number.MIN_SAFE_INTEGER;
-
-	for (let point of points) {
-		const distance = distancePointToLine(p1, p2, point);
-
-		if (distance > maxDistance) {
-			maxDistancePoint = point;
-			maxDistance = distance;
-		}
-	}
-
-	return maxDistancePoint;
 }
 
 function findMinYPoint(points) {
@@ -63,21 +16,6 @@ function findMinYPoint(points) {
 		}
 	}
 	return minPoint;
-}
-
-function findMinMaxXPoints(points) {
-	let minPoint = points[0];
-	let maxPoint = points[0];
-
-	for (let point of points) {
-		if (point.x < minPoint.x) {
-			minPoint = point;
-		} else if (point.x > maxPoint.x) {
-			maxPoint = point;
-		}
-	}
-
-	return [minPoint, maxPoint];
 }
 
 // Vector2 class
@@ -225,6 +163,25 @@ let zoom = 1;
 
 calculateConvexHull();
 
+// VORONOI
+
+// Generating voronoi
+const voronoiBounds = [-15, -15, 15, 15];
+const delaunay = d3.Delaunay.from(samplePoints.map((el) => [el.x, el.y]));
+const voronoi = delaunay.voronoi(voronoiBounds);
+
+// Extracting cell polygons for render
+const cellPolygonsGenerator = voronoi.cellPolygons();
+const cellPolygons = [];
+
+for (let polygon of cellPolygonsGenerator) {
+	cellPolygons.push(polygon.map((el) => new Vec2(el[0], el[1])));
+}
+
+// Render options
+let drawConvexHull = true;
+let drawVoronoiDiagram = true;
+
 function clear() {
 	background(31);
 }
@@ -259,8 +216,6 @@ function setup() {
 	yScale = (height - pointRadius * 4) / yMagnitude;
 }
 
-const drawConvexHull = true;
-
 function draw() {
 	background(31);
 	translate(screenPosition.x, screenPosition.y);
@@ -278,20 +233,44 @@ function draw() {
 	}
 
 	// Drawing lines
-	if (!drawConvexHull) return;
-	stroke(222, 128, 128);
-	for (let idx = 0; idx < convexHullPoints.length; idx++) {
-		const nextIdx = idx + 1 >= convexHullPoints.length ? 0 : idx + 1;
-		const currentPoint = convexHullPoints[idx];
-		const nextPoint = convexHullPoints[nextIdx];
+	if (drawConvexHull) {
+		stroke(222, 128, 128);
+		for (let idx = 0; idx < convexHullPoints.length; idx++) {
+			const nextIdx = idx + 1 >= convexHullPoints.length ? 0 : idx + 1;
+			const currentPoint = convexHullPoints[idx];
+			const nextPoint = convexHullPoints[nextIdx];
 
-		ellipse(currentPoint.x * xScale, currentPoint.y * yScale * -1, pointRadius);
-		line(
-			currentPoint.x * xScale,
-			currentPoint.y * yScale * -1,
-			nextPoint.x * xScale,
-			nextPoint.y * yScale * -1
-		);
+			ellipse(
+				currentPoint.x * xScale,
+				currentPoint.y * yScale * -1,
+				pointRadius
+			);
+			line(
+				currentPoint.x * xScale,
+				currentPoint.y * yScale * -1,
+				nextPoint.x * xScale,
+				nextPoint.y * yScale * -1
+			);
+		}
+	}
+
+	// Voronoi
+	if (drawVoronoiDiagram) {
+		stroke(128, 222, 128);
+		for (const polygon of cellPolygons) {
+			for (let idx = 0; idx < polygon.length; idx++) {
+				const nextIdx = idx + 1 >= polygon.length ? 0 : idx + 1;
+				const currentPoint = polygon[idx];
+				const nextPoint = polygon[nextIdx];
+
+				line(
+					currentPoint.x * xScale,
+					currentPoint.y * yScale * -1,
+					nextPoint.x * xScale,
+					nextPoint.y * yScale * -1
+				);
+			}
+		}
 	}
 }
 
