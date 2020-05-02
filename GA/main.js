@@ -326,7 +326,7 @@ randomizeSlider.oninput(); // Calling callback once to set it up
 
 function resetUI() {
 	isDragginScreen = true;
-	zoom = 1;
+	zoom = zoomMin;
 	screenPosition = screenCenter;
 }
 
@@ -359,13 +359,28 @@ function uniqueArrayOfPoints(arr) {
 	);
 }
 
+Array.prototype.clear = function () {
+	this.length = 0;
+};
+
 confirmButton.onclick = function () {
-	isDragginScreen = true;
+	if (!isDragginScreen) {
+		points = uniqueArrayOfPoints(points);
 
-	points = uniqueArrayOfPoints(points);
+		calculateConvexHull();
+		generateVoronoi();
+	} else {
+		resetUI();
 
-	calculateConvexHull();
-	generateVoronoi();
+		zoom = 1;
+
+		points.clear();
+		convexHullPoints.clear();
+		cellPolygons.clear();
+		graph.clear();
+	}
+
+	isDragginScreen = !isDragginScreen;
 };
 
 hullButton.onclick = function () {
@@ -398,6 +413,7 @@ let xOffset = 0;
 let yOffset = 0;
 let isDragginScreen = false;
 function mousePressed() {
+	console.log(isDragginScreen);
 	if (isDragginScreen) {
 		xOffset = mouseX - screenPosition.x;
 		yOffset = mouseY - screenPosition.y;
@@ -409,6 +425,7 @@ function mousePressed() {
 		const newY = ((mouseY - screenCenter.y) / screenSize.y) * -screenBounds[2];
 
 		points.push(new Vec2(newX, newY));
+		console.log(newX, newY);
 	}
 }
 
