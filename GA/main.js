@@ -63,6 +63,18 @@ Vec2.prototype.isInsidePolygon = function (points) {
 	return Math.round(angle) === 360;
 };
 
+function Graph() {
+	this.nodes = [];
+	this.edges = [];
+}
+Graph.prototype.clear = function () {
+	this.nodes.length = 0;
+	this.edges.length = 0;
+};
+Graph.prototype.addEdge = function (id1, id2) {
+	this.edges.push([id1, id2]);
+};
+
 // Points sample
 const samplePoints = [
 	new Vec2(-13, 0.5),
@@ -93,6 +105,7 @@ function generateRandomPoints(size, amplitude) {
 }
 
 let points = [];
+const graph = new Graph();
 const sortedArrayByX = samplePoints.sort((a, b) => a.x - b.x);
 
 // GRAHAM SCAN
@@ -160,6 +173,9 @@ const cellPolygons = [];
 let voronoi;
 
 function generateVoronoi() {
+	graph.clear();
+	graph.nodes = points;
+
 	const delaunay = d3.Delaunay.from(points.map((el) => [el.x, el.y]));
 	voronoi = delaunay.voronoi(screenBounds);
 
@@ -169,6 +185,15 @@ function generateVoronoi() {
 	cellPolygons.length = 0;
 	for (let polygon of cellPolygonsGenerator) {
 		cellPolygons.push(polygon.map((el) => new Vec2(el[0], el[1])));
+	}
+
+	// Getting neighbors
+	for (let i = 0; i < points.length; i++) {
+		const neighborsGenerator = voronoi.neighbors(i);
+
+		for (let neighborId of neighborsGenerator) {
+			graph.addEdge(i, neighborId);
+		}
 	}
 }
 
@@ -184,7 +209,8 @@ let zoom = 1;
 
 // Render options
 let drawConvexHull = true;
-let drawVoronoiDiagram = true;
+let drawVoronoiDiagram = false;
+let drawGraph = false;
 
 // Setting up everything
 //calculateConvexHull();
@@ -266,12 +292,30 @@ function draw() {
 			}
 		}
 	}
+
+	// Graph
+	if (drawGraph) {
+		stroke(128, 128, 222);
+		for (const edge of graph.edges) {
+			const [pA, pB] = [points[edge[0]], points[edge[1]]];
+
+			line(
+				pA.x * xScale,
+				pA.y * yScale * -1,
+				pB.x * xScale,
+				pB.y * yScale * -1
+			);
+		}
+	}
 }
 
 // Setting button callbacks
 const sampleButton = document.getElementById('button-sample');
 const randomizeButton = document.getElementById('button-randomize');
 const confirmButton = document.getElementById('button-confirm');
+const voronoiButton = document.getElementById('button-voronoi');
+const graphButton = document.getElementById('button-graph');
+const hullButton = document.getElementById('button-hull');
 
 const randomizeSlider = document.getElementById('random-points-range');
 const randomizeText = document.getElementById('random-points-value');
@@ -280,11 +324,14 @@ randomizeSlider.oninput = function () {
 };
 randomizeSlider.oninput(); // Calling callback once to set it up
 
-function useSampleData() {
+function resetUI() {
 	isDragginScreen = true;
-
 	zoom = 1;
 	screenPosition = screenCenter;
+}
+
+function useSampleData() {
+	resetUI();
 
 	points = samplePoints;
 	calculateConvexHull();
@@ -293,10 +340,7 @@ function useSampleData() {
 sampleButton.onclick = useSampleData;
 
 function useRandomizedData() {
-	isDragginScreen = true;
-
-	zoom = 1;
-	screenPosition = screenCenter;
+	resetUI();
 
 	points = generateRandomPoints(
 		Number(randomizeSlider.value),
@@ -324,6 +368,18 @@ confirmButton.onclick = function () {
 	generateVoronoi();
 };
 
+hullButton.onclick = function () {
+	drawConvexHull = !drawConvexHull;
+};
+
+graphButton.onclick = function () {
+	drawGraph = !drawGraph;
+};
+
+voronoiButton.onclick = function () {
+	drawVoronoiDiagram = !drawVoronoiDiagram;
+};
+
 // Movement and zoom
 const mouseSensitivity = 0.1;
 const zoomSensitivity = 0.005;
@@ -346,6 +402,9 @@ function mousePressed() {
 		xOffset = mouseX - screenPosition.x;
 		yOffset = mouseY - screenPosition.y;
 	} else {
+		if (mouseX < 0 || mouseX > screenSize.x) return;
+		if (mouseY < 0 || mouseY > screenSize.y) return;
+
 		const newX = ((mouseX - screenCenter.x) / screenSize.x) * screenBounds[0];
 		const newY = ((mouseY - screenCenter.y) / screenSize.y) * -screenBounds[2];
 
