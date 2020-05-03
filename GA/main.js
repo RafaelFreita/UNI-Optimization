@@ -24,6 +24,9 @@ function Vec2(x, y) {
 	this.x = x;
 	this.y = y;
 }
+Vec2.prototype.isEqual = function (other) {
+	return this.x === other.x && this.y === other.y;
+};
 Vec2.prototype.to = function (other) {
 	return new Vec2(other.x - this.x, other.y - this.y);
 };
@@ -63,6 +66,28 @@ Vec2.prototype.isInsidePolygon = function (points) {
 	return Math.round(angle) === 360;
 };
 
+function GraphNode(point) {
+	this.point = point;
+
+	this.f = 0;
+	this.g = 0;
+	this.h = 0;
+
+	this.parent = null;
+}
+GraphNode.prototype.isEqual = function (other) {
+	return this.point.isEqual(other.point);
+};
+
+function Edge(nodes, distance = 1) {
+	this.nodes = nodes; // Indexes
+	this.distance = distance;
+}
+Edge.prototype.isEqual = function (idxA, idxB) {
+	const [nA, nB] = this.nodes;
+	return (nA === idxA && nB === idxB) || (nA === idxB && nB === idxA);
+};
+
 function Graph() {
 	this.nodes = [];
 	this.edges = [];
@@ -71,8 +96,13 @@ Graph.prototype.clear = function () {
 	this.nodes.length = 0;
 	this.edges.length = 0;
 };
+Graph.prototype.addNode = function (point) {
+	this.nodes.push(new GraphNode(point));
+};
 Graph.prototype.addEdge = function (id1, id2) {
-	this.edges.push([id1, id2]);
+	this.edges.push(
+		new Edge([id1, id2], this.nodes[id1].point.distance(this.nodes[id2].point))
+	);
 };
 
 // Points sample
@@ -174,7 +204,9 @@ let voronoi;
 
 function generateVoronoi() {
 	graph.clear();
-	graph.nodes = points;
+	points.forEach((el) => {
+		graph.addNode(el);
+	});
 
 	const delaunay = d3.Delaunay.from(points.map((el) => [el.x, el.y]));
 	voronoi = delaunay.voronoi(screenBounds);
@@ -192,9 +224,116 @@ function generateVoronoi() {
 		const neighborsGenerator = voronoi.neighbors(i);
 
 		for (let neighborId of neighborsGenerator) {
+			// If edge already exists
+			if (graph.edges.some((el) => el.isEqual(i, neighborId))) continue;
+
 			graph.addEdge(i, neighborId);
 		}
 	}
+}
+
+// A*
+let aStarPoints = [];
+const selectedVertices = [];
+const distanceToSelect = 0.5;
+
+function euclidianDistance(nodeA, nodeB) {
+	return nodeA.point.distance(nodeB.point);
+}
+
+const distanceHeuristic = euclidianDistance;
+
+function computeAStar(graph, selectedPoints) {
+	console.log('Computing A Start with:', selectedPoints[0], selectedPoints[1]);
+
+	const [startPointIdx, endPointIdx] = selectedPoints;
+	const startNode = graph.nodes[startPointIdx];
+	const goalNode = graph.nodes[endPointIdx];
+
+	const openList = [];
+	const closedList = [];
+
+	// Add start node to open list
+	openList.push(startNode);
+
+	while (openList.length > 0) {
+		let currentNodeIdx = 0;
+		let currentNode = openList[0];
+
+		// Get node with least F
+		for (let i = 1; i < openList.length; i++) {
+			if (openList[i].f < currentNode.f) {
+				currentNode = openList[i];
+				currentNodeIdx = i;
+			}
+		}
+
+		let currentNodeInGraph = graph.nodes.findIndex((el) =>
+			el.isEqual(currentNode)
+		);
+
+		// Move current node from open list to closed list
+		openList.splice(currentNodeIdx, 1);
+		closedList.push(currentNode);
+
+		// Check if reached the goal
+		if (currentNode.point.isEqual(goalNode.point)) {
+			const path = []; // Array of GraphNode indexes (graph.nodes)
+			let current = currentNode;
+			while (current !== null) {
+				path.push(graph.nodes.findIndex((el) => el.isEqual(current)));
+				current = current.parent;
+			}
+			return path.reverse();
+		}
+
+		// Create all children nodes
+		const childrenNodes = [];
+		const currentNodeEdges = graph.edges.filter(
+			(el) =>
+				el.nodes[0] === currentNodeInGraph || el.nodes[1] === currentNodeInGraph
+		);
+
+		for (let i = 0; i < currentNodeEdges.length; i++) {
+			const checkingEdge = currentNodeEdges[i];
+			const checkingNodeIdx = checkingEdge.nodes.find(
+				(el) => el !== currentNodeInGraph
+			);
+			const checkingNode = graph.nodes[checkingNodeIdx];
+
+			const newNode = new GraphNode(checkingNode.point);
+			newNode.parent = currentNode;
+			newNode.g = checkingEdge.distance + currentNode.g;
+
+			childrenNodes.push(newNode);
+		}
+
+		// Compute values for children and add to open list
+		for (let i = 0; i < childrenNodes.length; i++) {
+			const currentChild = childrenNodes[i];
+
+			// Skip node if it's already in the closed list
+			if (closedList.some((el) => el.isEqual(currentChild))) continue;
+
+			// Compute h and f
+			currentChild.h = distanceHeuristic(currentChild, goalNode);
+			currentChild.f = currentChild.g + currentChild.h;
+
+			// Skip child if it's already in the open list and the other G is higher
+			const childIdxInOpenList = openList.findIndex((el) =>
+				el.isEqual(currentChild)
+			);
+
+			if (childIdxInOpenList !== -1) {
+				if (currentChild.g > graph.nodes[childIdxInOpenList].g) continue;
+			}
+
+			// Add child to open list
+			openList.push(currentChild);
+		}
+	}
+
+	throw new Error("Couldn't find a path for the A*!");
 }
 
 // Drawing
@@ -211,10 +350,7 @@ let zoom = 1;
 let drawConvexHull = true;
 let drawVoronoiDiagram = false;
 let drawGraph = false;
-
-// Setting up everything
-//calculateConvexHull();
-//generateVoronoi(samplePoints);
+let drawAStar = true;
 
 function clear() {
 	background(31);
@@ -297,13 +433,42 @@ function draw() {
 	if (drawGraph) {
 		stroke(128, 128, 222);
 		for (const edge of graph.edges) {
-			const [pA, pB] = [points[edge[0]], points[edge[1]]];
+			const [pA, pB] = [points[edge.nodes[0]], points[edge.nodes[1]]];
 
 			line(
 				pA.x * xScale,
 				pA.y * yScale * -1,
 				pB.x * xScale,
 				pB.y * yScale * -1
+			);
+		}
+	}
+
+	// A*
+	if (drawAStar) {
+		stroke(222, 128, 222);
+
+		// Selected vertices
+		for (let idx = 0; idx < selectedVertices.length; idx++) {
+			const currentPoint = points[selectedVertices[idx]];
+			ellipse(
+				currentPoint.x * xScale,
+				currentPoint.y * yScale * -1,
+				pointRadius * 2
+			);
+		}
+
+		strokeWeight(3);
+		for (let idx = 0; idx < aStarPoints.length - 1; idx++) {
+			const nextIdx = idx + 1 >= aStarPoints.length ? 0 : idx + 1;
+			const currentPoint = points[aStarPoints[idx]];
+			const nextPoint = points[aStarPoints[nextIdx]];
+
+			line(
+				currentPoint.x * xScale,
+				currentPoint.y * yScale * -1,
+				nextPoint.x * xScale,
+				nextPoint.y * yScale * -1
 			);
 		}
 	}
@@ -324,10 +489,17 @@ randomizeSlider.oninput = function () {
 };
 randomizeSlider.oninput(); // Calling callback once to set it up
 
+function clearAStar() {
+	aStarPoints.clear();
+	selectedVertices.clear();
+}
+
 function resetUI() {
 	isDragginScreen = true;
 	zoom = zoomMin;
 	screenPosition = screenCenter;
+
+	clearAStar();
 }
 
 function useSampleData() {
@@ -369,6 +541,8 @@ confirmButton.onclick = function () {
 
 		calculateConvexHull();
 		generateVoronoi();
+
+		confirmButton.innerText = 'Reset Points';
 	} else {
 		resetUI();
 
@@ -378,6 +552,8 @@ confirmButton.onclick = function () {
 		convexHullPoints.clear();
 		cellPolygons.clear();
 		graph.clear();
+
+		confirmButton.innerText = 'Confirm Points';
 	}
 
 	isDragginScreen = !isDragginScreen;
@@ -412,25 +588,53 @@ function mouseWheel(event) {
 let xOffset = 0;
 let yOffset = 0;
 let isDragginScreen = false;
+
+function screenToWorld(point) {
+	return new Vec2(
+		((point.x - screenCenter.x) / screenSize.x) * +screenBounds[0] * (1 / zoom),
+		((point.y - screenCenter.y) / screenSize.y) * -screenBounds[2] * (1 / zoom)
+	);
+}
+
 function mousePressed() {
-	console.log(isDragginScreen);
-	if (isDragginScreen) {
-		xOffset = mouseX - screenPosition.x;
-		yOffset = mouseY - screenPosition.y;
-	} else {
-		if (mouseX < 0 || mouseX > screenSize.x) return;
-		if (mouseY < 0 || mouseY > screenSize.y) return;
+	if (mouseX < 0 || mouseX > screenSize.x) return;
+	if (mouseY < 0 || mouseY > screenSize.y) return;
 
-		const newX = ((mouseX - screenCenter.x) / screenSize.x) * screenBounds[0];
-		const newY = ((mouseY - screenCenter.y) / screenSize.y) * -screenBounds[2];
+	if (mouseButton === 'left') {
+		if (isDragginScreen) {
+			xOffset = mouseX - screenPosition.x;
+			yOffset = mouseY - screenPosition.y;
+		} else {
+			points.push(screenToWorld(new Vec2(mouseX, mouseY)));
+		}
+	} else if (mouseButton === 'center') {
+		const mouseToWorld = screenToWorld(new Vec2(mouseX, mouseY));
 
-		points.push(new Vec2(newX, newY));
-		console.log(newX, newY);
+		const selectedPoint = graph.nodes.findIndex(
+			(el) => mouseToWorld.distance(el.point) <= distanceToSelect
+		);
+
+		if (selectedPoint === -1) return false;
+		if (selectedVertices.some((el) => el === selectedPoint)) return false; // Only add if point has not been added
+
+		selectedVertices.push(selectedPoint);
+		if (selectedVertices.length > 2) selectedVertices.shift();
+
+		if (selectedVertices.length === 2) {
+			aStarPoints = computeAStar(graph, selectedVertices);
+		}
 	}
+
+	return false;
 }
 
 function mouseDragged() {
+	if (mouseButton !== 'left') return false;
+
 	if (isDragginScreen) {
+		if (mouseX < 0 || mouseX > screenSize.x) return;
+		if (mouseY < 0 || mouseY > screenSize.y) return;
+
 		screenPosition.x = mouseX - xOffset;
 		screenPosition.y = mouseY - yOffset;
 	}
