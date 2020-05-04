@@ -24,73 +24,75 @@
 	</head>
 
 	<body>
-		<main>
+		<main style="overflow-y: auto;">
 			<div class="container">
-				<div class="row">
-					<p>
+				<p class="row">
+					<span style="text-align: center;">
 						Select the points and confirm them in the button below.
-						<br />
+					</span>
+					<br />
+					<span style="text-align: center;">
 						After confirming, click and drag to pan and use the mouse wheel to
 						zoom.
-						<br />
+					</span>
+					<br />
+					<span style="text-align: center;">
 						Selecting the sample points or generating random ones automatically
-						confirms (and erases the created points).
-					</p>
-				</div>
+						confirms them and erases the existing ones.
+					</span>
+				</p>
 
 				<div class="row">
-					<div id="canvas-container"></div>
-				</div>
-
-				<div class="row">
-					<div class="one-third column">
-						<button name="button-confirm" id="button-confirm">
-							Confirm Points
-						</button>
+					<div class="ten columns">
+						<div id="canvas-container"></div>
 					</div>
 
-					<div class="one-third column">
-						<button name="button-sample" id="button-sample">
-							Sample Points
-						</button>
+					<div class="two columns">
+						<div class="row u-pull-left">
+							<button
+								name="button-confirm"
+								id="button-confirm"
+								class="button-primary"
+							>
+								Confirm Points
+							</button>
+						</div>
+
+						<div class="row u-pull-left" style="margin-top: 4rem;">
+							<button name="button-sample" id="button-sample">
+								Sample Points
+							</button>
+						</div>
+
+						<div class="row u-pull-left">
+							<button name="button-randomize" id="button-randomize">
+								Randomize Points
+							</button>
+						</div>
+
+						<div class="row u-pull-left">
+							<span id="random-points-value"></span>
+							<input type="range" id="random-points-range" min="10" max="500" />
+						</div>
+
+						<div class="row u-pull-left" style="margin-top: 4rem;">
+							<button name="button-hull" id="button-hull">
+								Toggle Convex Hull
+							</button>
+						</div>
+
+						<div class="row u-pull-left">
+							<button name="button-voronoi" id="button-voronoi">
+								Toggle Voronoi
+							</button>
+						</div>
+
+						<div class="row u-pull-left">
+							<button name="button-graph" id="button-graph">
+								Toggle Graph
+							</button>
+						</div>
 					</div>
-
-					<div class="one-third column">
-						<button name="button-randomize" id="button-randomize">
-							Randomize Points
-						</button>
-					</div>
-				</div>
-
-				<div class="row">
-					<div class="one-third column">
-						<button name="button-hull" id="button-hull">
-							Toggle Convex Hull
-						</button>
-					</div>
-
-					<div class="one-third column">
-						<button name="button-voronoi" id="button-voronoi">
-							Toggle Voronoi
-						</button>
-					</div>
-
-					<div class="one-third column">
-						<button name="button-graph" id="button-graph">
-							Toggle Graph
-						</button>
-					</div>
-				</div>
-
-				<div class="row">
-					<div class="one-third column">X</div>
-
-					<div class="one-third column">
-						<span id="random-points-value"></span>
-						<input type="range" id="random-points-range" min="10" max="500" />
-					</div>
-
-					<div class="one-third column">X</div>
 				</div>
 			</div>
 		</main>

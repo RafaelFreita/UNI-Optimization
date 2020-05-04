@@ -244,8 +244,6 @@ function euclidianDistance(nodeA, nodeB) {
 const distanceHeuristic = euclidianDistance;
 
 function computeAStar(graph, selectedPoints) {
-	console.log('Computing A Start with:', selectedPoints[0], selectedPoints[1]);
-
 	const [startPointIdx, endPointIdx] = selectedPoints;
 	const startNode = graph.nodes[startPointIdx];
 	const goalNode = graph.nodes[endPointIdx];
@@ -357,7 +355,12 @@ function clear() {
 }
 
 function setup() {
-	const canvas = createCanvas(800, 600);
+	const canvasContainer = document.getElementById('canvas-container');
+	const aspectRatio = 600 / 800;
+	const canvas = createCanvas(
+		canvasContainer.clientWidth,
+		canvasContainer.clientWidth * aspectRatio
+	);
 	canvas.parent('canvas-container');
 
 	frameRate(60);
@@ -446,7 +449,7 @@ function draw() {
 
 	// A*
 	if (drawAStar) {
-		stroke(222, 128, 222);
+		stroke(222, 222, 128);
 
 		// Selected vertices
 		for (let idx = 0; idx < selectedVertices.length; idx++) {
@@ -596,11 +599,27 @@ function screenToWorld(point) {
 	);
 }
 
-function mousePressed() {
-	if (mouseX < 0 || mouseX > screenSize.x) return;
-	if (mouseY < 0 || mouseY > screenSize.y) return;
+function selectPoint(selectionPoint) {
+	const selectedPoint = graph.nodes.findIndex(
+		(el) => selectionPoint.distance(el.point) <= distanceToSelect
+	);
 
-	if (mouseButton === 'left') {
+	if (selectedPoint === -1) return false;
+	if (selectedVertices.some((el) => el === selectedPoint)) return false; // Only add if point has not been added
+
+	selectedVertices.push(selectedPoint);
+	if (selectedVertices.length > 2) selectedVertices.shift();
+
+	if (selectedVertices.length === 2) {
+		aStarPoints = computeAStar(graph, selectedVertices);
+	}
+}
+
+function mousePressed() {
+	if (mouseX < 0 || mouseX > screenSize.x) return true;
+	if (mouseY < 0 || mouseY > screenSize.y) return true;
+
+	if (mouseButton === 'left' || mouseButton === 0) {
 		if (isDragginScreen) {
 			xOffset = mouseX - screenPosition.x;
 			yOffset = mouseY - screenPosition.y;
@@ -609,23 +628,15 @@ function mousePressed() {
 		}
 	} else if (mouseButton === 'center') {
 		const mouseToWorld = screenToWorld(new Vec2(mouseX, mouseY));
-
-		const selectedPoint = graph.nodes.findIndex(
-			(el) => mouseToWorld.distance(el.point) <= distanceToSelect
-		);
-
-		if (selectedPoint === -1) return false;
-		if (selectedVertices.some((el) => el === selectedPoint)) return false; // Only add if point has not been added
-
-		selectedVertices.push(selectedPoint);
-		if (selectedVertices.length > 2) selectedVertices.shift();
-
-		if (selectedVertices.length === 2) {
-			aStarPoints = computeAStar(graph, selectedVertices);
-		}
+		selectPoint(mouseToWorld);
 	}
 
 	return false;
+}
+
+function doubleClicked() {
+	const mouseToWorld = screenToWorld(new Vec2(mouseX, mouseY));
+	selectPoint(mouseToWorld);
 }
 
 function mouseDragged() {
