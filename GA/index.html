@@ -37,61 +37,57 @@
 					</span>
 					<br />
 					<span style="text-align: center;">
+						You can toggle the convex hull, voronoi diagram, and neighbours
+						graph visualization.
+					</span>
+					<br />
+					<span style="text-align: center;">
 						Selecting the sample points or generating random ones automatically
 						confirms them and erases the existing ones.
 					</span>
+					<br />
 				</p>
 
 				<div class="row">
-					<div class="ten columns">
-						<div id="canvas-container"></div>
+					<div id="canvas-container"></div>
+				</div>
+
+				<div class="row">
+					<div class="one-third column" style="float: left;">
+						<button name="button-sample" id="button-sample">
+							Sample Points
+						</button>
+						<br />
+						<button name="button-randomize" id="button-randomize">
+							Randomize Points
+						</button>
+						<br />
+						<span id="random-points-value"></span>
+						<input type="range" id="random-points-range" min="10" max="500" />
 					</div>
 
-					<div class="two columns">
-						<div class="row u-pull-left">
-							<button
-								name="button-confirm"
-								id="button-confirm"
-								class="button-primary"
-							>
-								Confirm Points
-							</button>
-						</div>
+					<div class="one-third column">
+						<button
+							name="button-confirm"
+							id="button-confirm"
+							class="button-primary"
+						>
+							Confirm Points
+						</button>
+					</div>
 
-						<div class="row u-pull-left" style="margin-top: 4rem;">
-							<button name="button-sample" id="button-sample">
-								Sample Points
-							</button>
-						</div>
-
-						<div class="row u-pull-left">
-							<button name="button-randomize" id="button-randomize">
-								Randomize Points
-							</button>
-						</div>
-
-						<div class="row u-pull-left">
-							<span id="random-points-value"></span>
-							<input type="range" id="random-points-range" min="10" max="500" />
-						</div>
-
-						<div class="row u-pull-left" style="margin-top: 4rem;">
-							<button name="button-hull" id="button-hull">
-								Toggle Convex Hull
-							</button>
-						</div>
-
-						<div class="row u-pull-left">
-							<button name="button-voronoi" id="button-voronoi">
-								Toggle Voronoi
-							</button>
-						</div>
-
-						<div class="row u-pull-left">
-							<button name="button-graph" id="button-graph">
-								Toggle Graph
-							</button>
-						</div>
+					<div class="one-third column" style="float: right;">
+						<button name="button-hull" id="button-hull">
+							Toggle Convex Hull
+						</button>
+						<br />
+						<button name="button-voronoi" id="button-voronoi">
+							Toggle Voronoi
+						</button>
+						<br />
+						<button name="button-graph" id="button-graph">
+							Toggle Graph
+						</button>
 					</div>
 				</div>
 			</div>

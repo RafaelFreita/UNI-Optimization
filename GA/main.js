@@ -371,8 +371,8 @@ function setup() {
 	screenCenter = new Vec2(width / 2, height / 2);
 	screenPosition = screenCenter;
 
-	xScale = width / screenBounds[0];
-	yScale = height / screenBounds[2];
+	xScale = width / Math.abs(screenBounds[0]);
+	yScale = height / Math.abs(screenBounds[2]);
 }
 
 function draw() {
@@ -508,7 +508,7 @@ function resetUI() {
 function useSampleData() {
 	resetUI();
 
-	points = samplePoints;
+	points = [...samplePoints];
 	calculateConvexHull();
 	generateVoronoi();
 }
@@ -580,11 +580,26 @@ const zoomSensitivity = 0.005;
 const zoomMin = 0.5,
 	zoomMax = 5;
 function mouseWheel(event) {
+	// Mouse outside screen
+	if (mouseX < 0 || mouseX > screenSize.x) return true;
+	if (mouseY < 0 || mouseY > screenSize.y) return true;
+
+	// Mouse inside screen
+	if (
+		mouseX >= 0 &&
+		mouseX <= screenSize.x &&
+		mouseY >= 0 &&
+		mouseY <= screenSize.y
+	)
+		return false;
+
 	if (isDragginScreen) {
 		zoom -= zoomSensitivity * event.delta;
 		zoom = constrain(zoom, zoomMin, zoomMax);
+		return false;
 	}
-	return false;
+
+	return true;
 }
 
 // Mouse drag
@@ -594,8 +609,8 @@ let isDragginScreen = false;
 
 function screenToWorld(point) {
 	return new Vec2(
-		((point.x - screenCenter.x) / screenSize.x) * +screenBounds[0] * (1 / zoom),
-		((point.y - screenCenter.y) / screenSize.y) * -screenBounds[2] * (1 / zoom)
+		((point.x - screenCenter.x) / screenSize.x) * screenBounds[2] * (1 / zoom),
+		((point.y - screenCenter.y) / screenSize.y) * screenBounds[0] * (1 / zoom)
 	);
 }
 
@@ -640,11 +655,11 @@ function doubleClicked() {
 }
 
 function mouseDragged() {
-	if (mouseButton !== 'left') return false;
+	if (mouseButton !== 'left' || mouseButton === 0) return false;
 
 	if (isDragginScreen) {
-		if (mouseX < 0 || mouseX > screenSize.x) return;
-		if (mouseY < 0 || mouseY > screenSize.y) return;
+		if (mouseX < 0 || mouseX > screenSize.x) return true;
+		if (mouseY < 0 || mouseY > screenSize.y) return true;
 
 		screenPosition.x = mouseX - xOffset;
 		screenPosition.y = mouseY - yOffset;
