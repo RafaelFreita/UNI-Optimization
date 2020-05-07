@@ -1,110 +1,6 @@
 'use strict';
 
-// Helper
-const random101 = () => Math.random() * 2 - 1;
-
-function side(a, b, c) {
-	const v = (b.y - a.y) * (c.x - a.x) - (b.x - a.x) * (c.y - a.y);
-	return Math.sign(v);
-}
-
-function findMinYPoint(points) {
-	let minPoint = points[0];
-	for (let point of points) {
-		if (point.y < minPoint.y) {
-			minPoint = point;
-		}
-	}
-	return minPoint;
-}
-
-// Vector2 class
-const RAD = 180.0 / Math.PI;
-function Vec2(x, y) {
-	this.x = x;
-	this.y = y;
-}
-Vec2.prototype.isEqual = function (other) {
-	return this.x === other.x && this.y === other.y;
-};
-Vec2.prototype.to = function (other) {
-	return new Vec2(other.x - this.x, other.y - this.y);
-};
-Vec2.prototype.distance = function (other) {
-	return Math.sqrt(
-		Math.pow(this.x - other.x, 2) + Math.pow(this.y - other.y, 2)
-	);
-};
-Vec2.prototype.polarAngle = function () {
-	return Math.atan(this.y / this.x);
-};
-Vec2.prototype.dotProduct = function (other) {
-	return this.x * other.x + this.y * other.y;
-};
-Vec2.prototype.norm = function () {
-	return Math.sqrt(this.x * this.x + this.y * this.y);
-};
-Vec2.prototype.angle = function (other) {
-	const dot = this.dotProduct(other);
-	return Math.acos(dot / (this.norm() * other.norm())) * RAD;
-};
-Vec2.prototype.isInside = function (a, b, c) {
-	const d1 = side(a, b, this);
-	const d2 = side(b, c, this);
-	const d3 = side(c, a, this);
-	return d1 === d2 && d2 === d3;
-};
-Vec2.prototype.isInsidePolygon = function (points) {
-	let angle = 0;
-	for (let i = 0; i < points.length; i++) {
-		const j = i + 1 >= points.length ? 0 : i + 1;
-		const newVec = new Vec2(points[i].x - this.x, points[i].y - this.y);
-		const nextVec = new Vec2(points[j].x - this.x, points[j].y - this.y);
-		const newAngle = newVec.angle(nextVec);
-		angle += newAngle;
-	}
-	return Math.round(angle) === 360;
-};
-
-function GraphNode(point) {
-	this.point = point;
-
-	this.f = 0;
-	this.g = 0;
-	this.h = 0;
-
-	this.parent = null;
-}
-GraphNode.prototype.isEqual = function (other) {
-	return this.point.isEqual(other.point);
-};
-
-function Edge(nodes, distance = 1) {
-	this.nodes = nodes; // Indexes
-	this.distance = distance;
-}
-Edge.prototype.isEqual = function (idxA, idxB) {
-	const [nA, nB] = this.nodes;
-	return (nA === idxA && nB === idxB) || (nA === idxB && nB === idxA);
-};
-
-function Graph() {
-	this.nodes = [];
-	this.edges = [];
-}
-Graph.prototype.clear = function () {
-	this.nodes.length = 0;
-	this.edges.length = 0;
-};
-Graph.prototype.addNode = function (point) {
-	this.nodes.push(new GraphNode(point));
-};
-Graph.prototype.addEdge = function (id1, id2) {
-	this.edges.push(
-		new Edge([id1, id2], this.nodes[id1].point.distance(this.nodes[id2].point))
-	);
-};
-
+// --- SETUP ---
 // Points sample
 const samplePoints = [
 	new Vec2(-13, 0.5),
@@ -138,7 +34,9 @@ let points = [];
 const graph = new Graph();
 const sortedArrayByX = samplePoints.sort((a, b) => a.x - b.x);
 
+// --- CONVEX HULL ---
 // GRAHAM SCAN
+let convexHullPoints = [];
 function grahamScan(points) {
 	if (points.length <= 2) {
 		throw new Error('Trying to create a hull from insufficient points.');
@@ -191,13 +89,11 @@ function grahamScan(points) {
 	return hull;
 }
 
-let convexHullPoints = [];
 function calculateConvexHull() {
 	convexHullPoints = grahamScan(points);
 }
 
-// VORONOI
-// Generating voronoi
+// --- VORONOI ---
 const screenBounds = [-15, -15, 15, 15];
 const cellPolygons = [];
 let voronoi;
@@ -237,6 +133,23 @@ let aStarPoints = [];
 const selectedVertices = [];
 const distanceToSelect = 0.5;
 
+// 8 directions movement
+function diagonalDistance(nodeA, nodeB) {
+	const pA = nodeA.point;
+	const pB = nodeB.point;
+
+	return Math.max(Math.abs(pB.x - pA.x), Math.abs(pB.y - pA.y));
+}
+
+// L1 distance - 4 directions movement
+function manhattanDistance(nodeA, nodeB) {
+	const pA = nodeA.point;
+	const pB = nodeB.point;
+
+	return Math.abs(pB.x - pA.x) + Math.abs(pB.y - pA.y);
+}
+
+// L2 distance - movement in all directions
 function euclidianDistance(nodeA, nodeB) {
 	return nodeA.point.distance(nodeB.point);
 }
@@ -477,6 +390,7 @@ function draw() {
 	}
 }
 
+// --- INTERFACE ---
 // Setting button callbacks
 const sampleButton = document.getElementById('button-sample');
 const randomizeButton = document.getElementById('button-randomize');
@@ -577,30 +491,8 @@ voronoiButton.onclick = function () {
 // Movement and zoom
 const mouseSensitivity = 0.1;
 const zoomSensitivity = 0.005;
-const zoomMin = 0.5,
-	zoomMax = 5;
-function mouseWheel(event) {
-	// Mouse outside screen
-	if (mouseX < 0 || mouseX > screenSize.x) return true;
-	if (mouseY < 0 || mouseY > screenSize.y) return true;
-
-	// Mouse inside screen
-	if (
-		mouseX >= 0 &&
-		mouseX <= screenSize.x &&
-		mouseY >= 0 &&
-		mouseY <= screenSize.y
-	)
-		return false;
-
-	if (isDragginScreen) {
-		zoom -= zoomSensitivity * event.delta;
-		zoom = constrain(zoom, zoomMin, zoomMax);
-		return false;
-	}
-
-	return true;
-}
+const zoomMin = 0.5;
+const zoomMax = 5;
 
 // Mouse drag
 let xOffset = 0;
@@ -630,9 +522,35 @@ function selectPoint(selectionPoint) {
 	}
 }
 
-function mousePressed() {
+function isMouseOutsideCanvas(mouseX, mouseY) {
 	if (mouseX < 0 || mouseX > screenSize.x) return true;
 	if (mouseY < 0 || mouseY > screenSize.y) return true;
+	return false;
+}
+
+// --- p5JS CALLBACKS ---
+function mouseWheel(event) {
+	if (isMouseOutsideCanvas(mouseX, mouseY)) return true;
+
+	// Mouse inside screen
+	if (
+		mouseX >= 0 &&
+		mouseX <= screenSize.x &&
+		mouseY >= 0 &&
+		mouseY <= screenSize.y
+	) {
+		if (isDragginScreen) {
+			zoom -= zoomSensitivity * event.delta;
+			zoom = constrain(zoom, zoomMin, zoomMax);
+		}
+		return false;
+	}
+
+	return true;
+}
+
+function mousePressed() {
+	if (isMouseOutsideCanvas(mouseX, mouseY)) return true;
 
 	if (mouseButton === 'left' || mouseButton === 0) {
 		if (isDragginScreen) {
@@ -658,8 +576,7 @@ function mouseDragged() {
 	if (mouseButton !== 'left' || mouseButton === 0) return false;
 
 	if (isDragginScreen) {
-		if (mouseX < 0 || mouseX > screenSize.x) return true;
-		if (mouseY < 0 || mouseY > screenSize.y) return true;
+		if (isMouseOutsideCanvas(mouseX, mouseY)) return true;
 
 		screenPosition.x = mouseX - xOffset;
 		screenPosition.y = mouseY - yOffset;
