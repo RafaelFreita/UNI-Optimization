@@ -134,7 +134,7 @@ int main()
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	int width, height, nrChannels;
 
-	unsigned char* data = stbi_load("textures/grass.png", &width, &height, &nrChannels, 0);
+	unsigned char* data = stbi_load("textures/grass2.jpg", &width, &height, &nrChannels, 0);
 	if (data)
 	{
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_SRGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
@@ -175,21 +175,35 @@ int main()
 	billboardShader.use();
 	billboardShader.setInt("texture1", 0);
 
-	float lightDiskRadius = 1.0f;
+	float lightDiskRadius = 0.05f;
 
+	bool rotateLight = false;
+	float radius = 5.0f;
+	glm::vec3 lightPos = glm::vec3(0.0, 5.0, -5.0);
+	bool pressingEnter = false;
+	
 	while (!glfwWindowShouldClose(window))
 	{
-		// per-frame time logic
-		// --------------------
 		float currentFrame = glfwGetTime();
 		deltaTime = currentFrame - lastFrame;
 		lastFrame = currentFrame;
 
-		float radius = 5.0f;
-		//glm::vec3 lightPos = glm::vec3(cos(currentFrame) * radius, 5.0, sin(currentFrame) * radius);
-		glm::vec3 lightPos = glm::vec3(0.0, 5.0, -5.0);
-
 		processInput(window);
+
+		if (glfwGetKey(window, GLFW_KEY_ENTER) == GLFW_PRESS && !pressingEnter) {
+			rotateLight = !rotateLight;
+			pressingEnter = true;
+		}
+		if (glfwGetKey(window, GLFW_KEY_ENTER) == GLFW_RELEASE) {
+			pressingEnter = false;
+		}
+
+		if (rotateLight) {
+			lightPos = glm::vec3(cos(currentFrame) * radius, 2.5, sin(currentFrame) * radius);
+		}
+		else {
+			lightPos = glm::vec3(0.0, 5.0, -5.0);
+		}
 
 		glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -212,7 +226,12 @@ int main()
 		billboardModel = glm::rotate(billboardModel, angle, glm::vec3(0.0f, 1.0f, 0.0f));
 
 		// Render Ground
-		lightDiskRadius = 0.05f;
+		if (glfwGetKey(window, GLFW_KEY_KP_ADD) == GLFW_PRESS)
+			lightDiskRadius += 0.001f;
+		if (glfwGetKey(window, GLFW_KEY_KP_SUBTRACT) == GLFW_PRESS)
+			lightDiskRadius -= 0.001f;
+
+		lightDiskRadius = fmax(0, lightDiskRadius);
 
 		coreShader.setMat4("model", model);
 		coreShader.setMat4("billboardModel", billboardModel);

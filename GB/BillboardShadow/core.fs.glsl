@@ -17,9 +17,9 @@ uniform float lightDiskRadius = 0.15f;
 
 uniform mat4 billboardModel;
 
-float ambientStrength = 0.1;
+float ambientStrength = 0.01;
 float specularStrength = 0.15;
-float shadowStrength = 0.1;
+float shadowStrength = 0.5;
 
 vec3 vecUp = vec3(0, 1, 0);
 
@@ -45,7 +45,6 @@ bool intersect_triangle(
 	u = dot(E2, DAO) * invdet;
 	v = -dot(E1, DAO) * invdet;
 	t = dot(AO, N) * invdet;
-	//det >= 1e-6 && t >= 0.0 &&  // Not sure why u need those tbh
 	return (u >= 0.0 && v >= 0.0 && (u + v) <= 1.0);
 }
 
@@ -98,17 +97,13 @@ void main()
 	FragColor = vec4(baseLight, 1.0) * texture(texture1, texCoords * 3);
 	FragColor += vec4(specular, 1.0);
 
-	// Main Shadow
+	// Billboard points
 	vec3 a = vec3(billboardModel * (billboardPos + vec4(-0.5, -0.5, 0.0, 0.0)));
 	vec3 b = vec3(billboardModel * (billboardPos + vec4(+0.5, -0.5, 0.0, 0.0)));
 	vec3 c = vec3(billboardModel * (billboardPos + vec4(-0.5, +0.5, 0.0, 0.0)));
 	vec3 d = vec3(billboardModel * (billboardPos + vec4(+0.5, +0.5, 0.0, 0.0)));
 
-	/*vec2 shadowResult = computeShadow(FragPos, lightPos, a, b, c, d);
-	float shadowValue = shadowResult.x;
-	float distHit = shadowResult.y;*/
-
-	// Penumbra
+	// Shadows
 	vec3 lightTangent = normalize(cross(-lightDir, vecUp));
 	vec3 lightBitangent = cross(lightTangent, -lightDir);
 
